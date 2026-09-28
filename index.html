@@ -1,0 +1,336 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+  <meta name="theme-color" content="#10191a">
+  <title>Yellow Cab - Manhattan Rush</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700;800;900&family=DM+Mono:wght@400;500&display=swap');
+    :root { color-scheme: dark; --ink: #f6f1df; --muted: #aeb7ad; --yellow: #ffd34f; --red: #f16c52; --line: rgba(246,241,223,.22); }
+    * { box-sizing: border-box; }
+    html, body { width: 100%; height: 100%; margin: 0; overflow: hidden; background: #10191a; }
+    body { color: var(--ink); font-family: 'DM Mono', monospace; }
+    canvas { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }
+    .grain { position: fixed; inset: 0; z-index: 1; pointer-events: none; opacity: .12; background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 180 180' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.2'/%3E%3C/svg%3E"); }
+    .hud { position: fixed; inset: 0; z-index: 2; pointer-events: none; }
+    .topbar { position: absolute; top: 22px; left: 26px; right: 26px; display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
+    .brand { display: flex; align-items: center; gap: 12px; }
+    .brand-mark { width: 42px; height: 42px; display: grid; place-items: center; color: #17201c; background: var(--yellow); font: 900 18px 'Barlow Condensed', sans-serif; transform: skew(-8deg); }
+    .brand-name { font: 800 20px/.9 'Barlow Condensed', sans-serif; letter-spacing: .04em; }
+    .brand-name small { display: block; margin-top: 5px; color: var(--yellow); font: 500 9px 'DM Mono', monospace; letter-spacing: .18em; }
+    .stats { display: flex; gap: 22px; text-align: right; }
+    .stat-label { display: block; margin-bottom: 4px; color: #c4c7b9; font-size: 9px; letter-spacing: .16em; }
+    .stat-value { font: 700 25px/.9 'Barlow Condensed', sans-serif; }
+    .stat-value em { color: var(--yellow); font-style: normal; }
+    .district { position: absolute; left: 26px; top: 88px; padding-left: 11px; border-left: 2px solid var(--red); color: #e7e1cf; font-size: 10px; letter-spacing: .1em; }
+    .district strong { display: block; margin-top: 5px; color: white; font: 700 18px 'Barlow Condensed', sans-serif; letter-spacing: .06em; }
+    .mission { position: absolute; right: 26px; top: 88px; min-width: 145px; text-align: right; }
+    .mission-title { color: var(--yellow); font-size: 9px; letter-spacing: .16em; }
+    .mission-copy { margin-top: 7px; font: 600 16px 'Barlow Condensed', sans-serif; }
+    .progress { height: 3px; margin-top: 9px; background: rgba(255,255,255,.25); }
+    .progress i { display: block; width: 0; height: 100%; background: var(--yellow); transition: width .25s; }
+    .bottom { position: absolute; right: 26px; bottom: 22px; display: flex; align-items: end; gap: 22px; }
+    .speed { text-align: right; }
+    .speed strong { display: block; font: 800 43px/.8 'Barlow Condensed', sans-serif; }
+    .speed span { color: #c4c7b9; font-size: 9px; letter-spacing: .18em; }
+    .keys { color: #e4e1d4; font-size: 9px; line-height: 1.9; text-align: right; }
+    .keys b { color: var(--yellow); font-weight: 500; }
+    .toast { position: absolute; left: 50%; top: 26%; padding: 9px 15px; color: #17201c; background: var(--yellow); font: 700 15px 'Barlow Condensed', sans-serif; letter-spacing: .08em; opacity: 0; transform: translate(-50%, 8px); transition: .2s; }
+    .toast.show { opacity: 1; transform: translate(-50%, 0); }
+    .overlay { position: fixed; inset: 0; z-index: 4; display: grid; place-items: center; padding: 24px; background: rgba(8,14,15,.53); backdrop-filter: blur(5px); transition: opacity .3s, visibility .3s; }
+    .overlay.hidden { opacity: 0; visibility: hidden; }
+    .briefing { width: min(470px, 100%); padding: 30px 34px 28px; border: 1px solid rgba(246,241,223,.32); border-top: 3px solid var(--yellow); background: rgba(15,24,24,.94); box-shadow: 12px 12px 0 rgba(0,0,0,.16); }
+    .eyebrow { color: var(--yellow); font-size: 10px; letter-spacing: .2em; }
+    h1 { margin: 10px 0 0; font: 900 56px/.82 'Barlow Condensed', sans-serif; letter-spacing: -.01em; text-transform: uppercase; }
+    h1 span { color: var(--yellow); }
+    .briefing p { max-width: 360px; margin: 17px 0 20px; color: #ccd1c5; font-size: 11px; line-height: 1.8; }
+    .mission-row { display: flex; justify-content: space-between; padding: 11px 0; border-top: 1px solid var(--line); color: #c4c7b9; font-size: 10px; }
+    .mission-row strong { color: var(--ink); font-weight: 500; }
+    .start { width: 100%; margin-top: 20px; padding: 14px 16px; border: 0; color: #16201b; background: var(--yellow); font: 800 17px 'Barlow Condensed', sans-serif; letter-spacing: .12em; cursor: pointer; }
+    .start:hover { background: #ffe18a; }
+    .touch { position: absolute; left: 18px; bottom: 17px; display: none; gap: 6px; pointer-events: auto; }
+    .touch button { width: 43px; height: 43px; border: 1px solid rgba(255,255,255,.35); color: white; background: rgba(15,24,24,.68); font-size: 16px; touch-action: none; }
+    @media (pointer: coarse) { .touch { display: flex; } .keys { display: none; } }
+    @media (max-width: 600px) {
+      .topbar { top: 15px; left: 16px; right: 16px; }
+      .brand-mark { width: 36px; height: 36px; }
+      .brand-name { font-size: 17px; }
+      .stats { gap: 12px; }
+      .stat-value { font-size: 21px; }
+      .district { top: 68px; left: 16px; }
+      .mission { top: 68px; right: 16px; min-width: 124px; }
+      .mission-copy { font-size: 14px; }
+      .bottom { right: 16px; bottom: 18px; }
+      .speed strong { font-size: 36px; }
+      .briefing { padding: 25px 23px 22px; }
+      h1 { font-size: 48px; }
+    }
+    @media (max-height: 520px) and (orientation: landscape) {
+      .topbar { top: 11px; }
+      .district, .mission { top: 62px; }
+      .briefing { padding: 18px 24px; }
+      h1 { font-size: 43px; }
+      .briefing p { margin: 10px 0; }
+      .start { margin-top: 12px; padding: 10px; }
+    }
+  </style>
+  <script type="importmap">
+    { "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js" } }
+  </script>
+</head>
+<body>
+  <canvas id="game" aria-label="Jogo 3D de táxi pelas ruas de Manhattan"></canvas>
+  <div class="grain"></div>
+  <main class="hud" aria-live="polite">
+    <div class="topbar">
+      <div class="brand"><div class="brand-mark">YC</div><div class="brand-name">YELLOW CAB<small>MANHATTAN • N.Y.C.</small></div></div>
+      <div class="stats">
+        <div><span class="stat-label">ENTREGAS</span><div class="stat-value"><em id="score">00</em><span> / 08</span></div></div>
+        <div><span class="stat-label">TEMPO</span><div class="stat-value" id="timer">90</div></div>
+      </div>
+    </div>
+    <div class="district">NOVA YORK<strong>LOWER MANHATTAN</strong></div>
+    <div class="mission"><div class="mission-title">CORRIDA ATUAL</div><div class="mission-copy" id="mission">PEGUE O PRÓXIMO PACOTE</div><div class="progress"><i id="progress"></i></div></div>
+    <div class="toast" id="toast">PACOTE COLETADO</div>
+    <div class="bottom"><div class="keys"><b>WASD</b> / SETAS · DIRIGIR<br><b>ESPAÇO</b> · FREIO DE MÃO</div><div class="speed"><strong id="speed">000</strong><span>KM/H</span></div></div>
+    <div class="touch" aria-label="Controles de direção">
+      <button data-key="ArrowLeft" aria-label="Virar à esquerda">◀</button><button data-key="ArrowUp" aria-label="Acelerar">▲</button><button data-key="ArrowDown" aria-label="Frear">▼</button><button data-key="ArrowRight" aria-label="Virar à direita">▶</button>
+    </div>
+  </main>
+  <section class="overlay" id="overlay">
+    <div class="briefing">
+      <div class="eyebrow">NOVA YORK, 19:42 • SEXTA-FEIRA</div>
+      <h1>ÚLTIMA<br><span>CHAMADA.</span></h1>
+      <p>Oito entregas antes que a noite acabe. Costure o trânsito, corte caminho pelos quarteirões e leve cada pacote ao seu destino.</p>
+      <div class="mission-row"><span>OBJETIVO</span><strong>ENTREGUE 8 PACOTES</strong></div>
+      <div class="mission-row"><span>NO RELÓGIO</span><strong>01:30</strong></div>
+      <button class="start" id="start">ENTRAR NO TÁXI&nbsp; ↗</button>
+    </div>
+  </section>
+  <script type="module">
+    import * as THREE from 'three';
+
+    const canvas = document.querySelector('#game');
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color('#91a9a3');
+    scene.fog = new THREE.Fog('#91a9a3', 95, 205);
+    const camera = new THREE.PerspectiveCamera(42, innerWidth / innerHeight, .1, 280);
+    const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
+    renderer.setPixelRatio(Math.min(devicePixelRatio, 1.7));
+    renderer.setSize(innerWidth, innerHeight);
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.15;
+
+    scene.add(new THREE.HemisphereLight('#e6edcf', '#263335', 2.15));
+    const sun = new THREE.DirectionalLight('#ffe0a0', 3.1);
+    sun.position.set(-36, 64, 24);
+    sun.castShadow = true;
+    sun.shadow.mapSize.set(2048, 2048);
+    sun.shadow.camera.left = -90; sun.shadow.camera.right = 90; sun.shadow.camera.top = 90; sun.shadow.camera.bottom = -90;
+    scene.add(sun);
+
+    const mat = (color, roughness = .86, extra = {}) => new THREE.MeshStandardMaterial({ color, roughness, ...extra });
+    const materials = {
+      asphalt: mat('#343c3a'), sidewalk: mat('#9b9887'), concrete: mat('#b5ad98'),
+      brick: ['#8b5544', '#b17b5c', '#77776d', '#c5a37a', '#6f7773'].map(c => mat(c)),
+      glass: ['#526b6b', '#647c7c', '#42595d', '#8a9a91'].map(c => mat(c, .38)),
+      yellow: mat('#f4bd32', .38), black: mat('#1c2525', .35), tire: mat('#171b1b'),
+      white: mat('#e8e6d7', .3), red: mat('#df5947', .3), green: mat('#517e57'),
+      neon: mat('#ffd85b', .25, { emissive: '#c07812', emissiveIntensity: 1.1 }),
+      parcel: mat('#e26443', .52, { emissive: '#5c1e11', emissiveIntensity: .25 })
+    };
+    const boxGeo = new THREE.BoxGeometry(1, 1, 1);
+    const world = new THREE.Group();
+    scene.add(world);
+
+    function box(parent, x, y, z, sx, sy, sz, material, cast = true) {
+      const mesh = new THREE.Mesh(boxGeo, material);
+      mesh.position.set(x, y, z); mesh.scale.set(sx, sy, sz);
+      mesh.castShadow = cast; mesh.receiveShadow = true; parent.add(mesh);
+      return mesh;
+    }
+
+    box(world, 0, -.32, 0, 132, .6, 132, materials.green, false);
+    for (let lane = -60; lane <= 60; lane += 24) {
+      box(world, lane, -.01, 0, 10, .2, 132, materials.asphalt, false);
+      box(world, 0, -.01, lane, 132, .2, 10, materials.asphalt, false);
+      for (let mark = -60; mark <= 60; mark += 8) {
+        box(world, lane, .105, mark, .12, .018, 3.2, materials.concrete, false);
+        box(world, mark, .105, lane, 3.2, .018, .12, materials.concrete, false);
+      }
+      for (const side of [-1, 1]) {
+        box(world, lane + side * 5.5, .02, 0, 1, .25, 132, materials.sidewalk, false);
+        box(world, 0, .02, lane + side * 5.5, 132, .25, 1, materials.sidewalk, false);
+      }
+    }
+
+    const colliders = [];
+    let seed = 2026;
+    const random = () => { seed = (seed * 1664525 + 1013904223) >>> 0; return seed / 4294967296; };
+    for (let gx = -36; gx <= 36; gx += 24) for (let gz = -36; gz <= 36; gz += 24) {
+      const park = random() > .87;
+      box(world, gx, .1, gz, 13.2, .2, 13.2, park ? materials.green : materials.sidewalk, false);
+      if (park) {
+        for (let t = 0; t < 5; t++) {
+          const x = gx + (random() - .5) * 10, z = gz + (random() - .5) * 10;
+          box(world, x, 1.3, z, .42, 2.5, .42, materials.brick[2]);
+          const crown = new THREE.Mesh(new THREE.IcosahedronGeometry(1.2, 1), materials.green);
+          crown.position.set(x, 3, z); crown.castShadow = true; world.add(crown);
+        }
+        continue;
+      }
+      const count = random() > .62 ? 2 : 1;
+      for (let n = 0; n < count; n++) {
+        const w = count === 1 ? 10.5 : 5.1, d = count === 1 ? 10.5 : 5.2;
+        const ox = count === 1 ? 0 : (n === 0 ? -3 : 3);
+        const h = 10 + random() * 34;
+        const building = new THREE.Group(); building.position.set(gx + ox, 0, gz + (count === 1 ? 0 : (random() - .5) * 4));
+        const color = materials.brick[Math.floor(random() * materials.brick.length)];
+        box(building, 0, h / 2, 0, w, h, d, color);
+        box(building, 0, h + .12, 0, w + .22, .25, d + .22, materials.concrete);
+        box(building, 0, h + .5, 0, w * .48, .55, d * .42, materials.glass);
+        const rows = Math.floor(h / 3.4);
+        for (let row = 0; row < rows; row++) for (let col = 0; col < 3; col++) {
+          const wy = 2 + row * 3.2;
+          box(building, -w * .32 + col * w * .32, wy, d / 2 + .012, .75, 1.1, .04, materials.glass, false);
+          box(building, w / 2 + .012, wy, -d * .32 + col * d * .32, .04, 1.1, .75, materials.glass, false);
+        }
+        world.add(building);
+        colliders.push({ x: building.position.x, z: building.position.z, hx: w * .55, hz: d * .55 });
+      }
+    }
+
+    // Landmark silhouettes give the skyline a recognizable downtown rhythm.
+    for (const [x, z, h, w, d] of [[-12, -36, 53, 7, 7], [36, -12, 45, 8, 8], [-36, 12, 40, 8, 8], [12, 36, 58, 7, 7]]) {
+      box(world, x, h / 2, z, w, h, d, materials.glass);
+      box(world, x, h + 1, z, w + .35, .5, d + .35, materials.concrete);
+      box(world, x, h + 4, z, .25, 6, .25, materials.neon);
+      colliders.push({ x, z, hx: w * .6, hz: d * .6 });
+    }
+
+    function makeCar() {
+      const car = new THREE.Group();
+      box(car, 0, .64, 0, 2.3, .85, 4.1, materials.yellow);
+      box(car, 0, 1.25, -.18, 1.72, .68, 2.15, materials.black);
+      box(car, 0, 1.27, -.18, 1.53, .5, 1.95, materials.glass, false);
+      box(car, 0, 1.73, .16, .66, .17, .46, materials.neon);
+      for (const x of [-1.17, 1.17]) for (const z of [-1.28, 1.3]) {
+        const wheel = new THREE.Mesh(new THREE.CylinderGeometry(.4, .4, .22, 12), materials.tire);
+        wheel.rotation.z = Math.PI / 2; wheel.position.set(x, .39, z); wheel.castShadow = true; car.add(wheel);
+      }
+      for (const x of [-.77, .77]) {
+        box(car, x, .65, -2.06, .43, .24, .06, materials.white, false);
+        box(car, x, .65, 2.06, .43, .24, .06, materials.red, false);
+      }
+      const checker = new THREE.Group(); checker.position.set(0, 1.64, .16); car.add(checker);
+      for (let i = 0; i < 4; i++) box(checker, (i - 1.5) * .16, 0, 0, .16, .025, .46, i % 2 ? materials.black : materials.white, false);
+      world.add(car); return car;
+    }
+    const car = makeCar();
+    car.position.set(-48, 0, 49);
+    car.rotation.y = 0;
+    const traffic = [];
+    for (let i = 0; i < 9; i++) {
+      const vehicle = new THREE.Group();
+      box(vehicle, 0, .48, 0, 1.8, .65, 3.2, i % 3 ? materials.red : materials.white);
+      box(vehicle, 0, .96, -.1, 1.35, .42, 1.55, materials.glass, false);
+      world.add(vehicle);
+      traffic.push({ mesh: vehicle, axis: i % 2 ? 'x' : 'z', lane: [-48, -24, 0, 24, 48][i % 5] + (i % 2 ? 2.4 : -2.4), pos: -58 + i * 13, speed: 6 + random() * 5, sign: i % 2 ? 1 : -1 });
+    }
+
+    const pickupPositions = [[-48, 25], [-24, 1], [1, -24], [24, 1], [48, -23], [24, -48], [0, 24], [-24, 48]];
+    const pickups = pickupPositions.map(([x, z], index) => {
+      const group = new THREE.Group();
+      const parcel = new THREE.Mesh(new THREE.BoxGeometry(.85, .85, .85), materials.parcel);
+      parcel.position.y = 1.1; parcel.castShadow = true; group.add(parcel);
+      const ribbon = new THREE.Mesh(new THREE.BoxGeometry(.14, .89, .9), materials.neon); ribbon.position.y = 1.1; group.add(ribbon);
+      const ring = new THREE.Mesh(new THREE.TorusGeometry(1.15, .045, 8, 32), materials.neon); ring.rotation.x = Math.PI / 2; ring.position.y = .15; group.add(ring);
+      group.position.set(x + (index % 2 ? 2.1 : -2.1), 0, z);
+      world.add(group); return { group, collected: false };
+    });
+
+    const pressed = new Set();
+    let active = false, ended = false, score = 0, timeLeft = 90, velocity = 0, heading = 0;
+    let toastTimeout;
+    const scoreEl = document.querySelector('#score'), timerEl = document.querySelector('#timer'), speedEl = document.querySelector('#speed');
+    const missionEl = document.querySelector('#mission'), progressEl = document.querySelector('#progress');
+    const overlay = document.querySelector('#overlay');
+    const toastEl = document.querySelector('#toast');
+
+    function keyName(key) { return key === 'ArrowUp' ? 'w' : key === 'ArrowDown' ? 's' : key === 'ArrowLeft' ? 'a' : key === 'ArrowRight' ? 'd' : key.toLowerCase(); }
+    addEventListener('keydown', event => { const key = keyName(event.key); if (['w','a','s','d',' ','arrowup','arrowdown','arrowleft','arrowright'].includes(key)) { pressed.add(key); event.preventDefault(); } });
+    addEventListener('keyup', event => pressed.delete(keyName(event.key)));
+    document.querySelectorAll('.touch button').forEach(button => {
+      const key = keyName(button.dataset.key);
+      button.addEventListener('pointerdown', event => { event.preventDefault(); pressed.add(key); button.setPointerCapture(event.pointerId); });
+      const release = () => pressed.delete(key);
+      button.addEventListener('pointerup', release); button.addEventListener('pointercancel', release); button.addEventListener('lostpointercapture', release);
+    });
+    document.querySelector('#start').addEventListener('click', () => { active = true; overlay.classList.add('hidden'); });
+
+    function finish(won) {
+      ended = true; active = false;
+      document.querySelector('.eyebrow').textContent = won ? 'TURNO ENCERRADO • MANHATTAN AGRADECE' : 'FIM DE TURNO • A CIDADE NÃO ESPERA';
+      document.querySelector('h1').innerHTML = won ? 'CORRIDA<br><span>PERFEITA.</span>' : 'NOITE<br><span>ENCERRADA.</span>';
+      document.querySelector('.briefing p').textContent = won ? 'Todos os pacotes chegaram ao destino. As luzes da cidade são suas.' : `Você entregou ${score} de 8 pacotes. Amanhã, a cidade continua. `;
+      document.querySelector('#start').textContent = 'DIRIGIR DE NOVO  ↗';
+      document.querySelector('#start').onclick = () => location.reload();
+      overlay.classList.remove('hidden');
+    }
+
+    function update(dt, elapsed) {
+      if (active && !ended) {
+        timeLeft -= dt;
+        if (timeLeft <= 0) { timeLeft = 0; finish(false); }
+        const accelerating = pressed.has('w') || pressed.has('arrowup');
+        const braking = pressed.has('s') || pressed.has('arrowdown');
+        const handbrake = pressed.has(' ');
+        if (accelerating) velocity += 19 * dt;
+        else if (braking) velocity -= 26 * dt;
+        else velocity *= Math.pow(.985, dt * 60);
+        velocity = THREE.MathUtils.clamp(velocity, -8, 24);
+        const steering = (pressed.has('a') || pressed.has('arrowleft') ? 1 : 0) - (pressed.has('d') || pressed.has('arrowright') ? 1 : 0);
+        heading += steering * dt * (1.45 + Math.min(Math.abs(velocity) / 13, 1.2)) * (velocity < 0 ? -1 : 1) * (handbrake ? 1.65 : 1);
+        car.rotation.y = heading;
+        const oldX = car.position.x, oldZ = car.position.z;
+        car.position.x -= Math.sin(heading) * velocity * dt;
+        car.position.z -= Math.cos(heading) * velocity * dt;
+        let blocked = false;
+        for (const collider of colliders) if (Math.abs(car.position.x - collider.x) < collider.hx + .8 && Math.abs(car.position.z - collider.z) < collider.hz + .8) { blocked = true; break; }
+        if (blocked) { car.position.x = oldX; car.position.z = oldZ; velocity *= -.22; }
+        for (const pickup of pickups) if (!pickup.collected && car.position.distanceTo(pickup.group.position) < 3.4) {
+          pickup.collected = true; pickup.group.visible = false; score++;
+          scoreEl.textContent = String(score).padStart(2, '0');
+          progressEl.style.width = `${score / 8 * 100}%`;
+          missionEl.textContent = score === 8 ? 'TURNO COMPLETO!' : `${8 - score} PACOTE${score === 7 ? '' : 'S'} RESTANTE${score === 7 ? '' : 'S'}`;
+          toastEl.textContent = score === 8 ? 'TODAS AS ENTREGAS FEITAS!' : 'PACOTE COLETADO  +1';
+          toastEl.classList.add('show'); clearTimeout(toastTimeout); toastTimeout = setTimeout(() => toastEl.classList.remove('show'), 1250);
+          if (score === 8) setTimeout(() => finish(true), 650);
+        }
+      }
+      for (const vehicle of traffic) {
+        vehicle.pos += vehicle.speed * vehicle.sign * dt;
+        if (vehicle.pos > 62) vehicle.pos = -62;
+        if (vehicle.pos < -62) vehicle.pos = 62;
+        if (vehicle.axis === 'x') { vehicle.mesh.position.set(vehicle.pos, 0, vehicle.lane); vehicle.mesh.rotation.y = vehicle.sign > 0 ? -Math.PI / 2 : Math.PI / 2; }
+        else { vehicle.mesh.position.set(vehicle.lane, 0, vehicle.pos); vehicle.mesh.rotation.y = vehicle.sign > 0 ? Math.PI : 0; }
+      }
+      for (let i = 0; i < pickups.length; i++) if (!pickups[i].collected) { pickups[i].group.children[0].rotation.y = elapsed * 1.3 + i; pickups[i].group.position.y = Math.sin(elapsed * 2 + i) * .12; }
+      const follow = new THREE.Vector3(car.position.x + Math.sin(heading) * 13, 19, car.position.z + Math.cos(heading) * 13);
+      camera.position.lerp(follow, 1 - Math.pow(.001, dt));
+      camera.lookAt(car.position.x, .2, car.position.z);
+      timerEl.textContent = String(Math.ceil(timeLeft)).padStart(2, '0');
+      speedEl.textContent = String(Math.round(Math.abs(velocity) * 6)).padStart(3, '0');
+    }
+
+    camera.position.set(-48, 19, 62); camera.lookAt(-48, 0, 49);
+    const clock = new THREE.Clock();
+    function frame() { requestAnimationFrame(frame); const dt = Math.min(clock.getDelta(), .04); update(dt, clock.elapsedTime); renderer.render(scene, camera); }
+    frame();
+    addEventListener('resize', () => { camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix(); renderer.setSize(innerWidth, innerHeight); renderer.setPixelRatio(Math.min(devicePixelRatio, 1.7)); });
+  </script>
+</body>
+</html>
